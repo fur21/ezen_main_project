@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http:///www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+
+<head>
+	<th:block layout:fragment="css">
+		<link rel="stylesheet" href="/css/aside.css"/>
+	</th:block>
+</head>      
+<body>
+	<aside th:fragment="aside">
+    	<!-- left -->
+	    <div id="side">
+	      <div class="sideList" sec:authorize="hasRole('ROLE_ADMIN')">
+	      <!-- /datecourse/getDatecourseList -->
+	        <a href="/datecourse/getDatecourseList">데이트 코스 리스트</a>
+	      </div>
+	      <div class="sideList" sec:authorize="hasRole('ROLE_ADMIN')">
+	      <!-- /datecourse/insertDatecourse -->
+	        <a href="/datecourse/insertDatecourse">데이트 코스 등록</a>
+	      </div>
+	      <div class="sideList" sec:authorize="hasRole('ROLE_ADMIN')">
+	      <!-- /hotdeal/insertHotdeal -->
+	        <a href="/hotdeal/insertHotdeal">핫딜 등록</a>
+	      </div>
+	      <div class="sideList" sec:authorize="hasRole('ROLE_ADMIN')">
+	      <!-- /hotdeal/hotdealList -->
+	        <a href="/hotdeal/hotdealList">핫딜 리스트</a>
+	      </div>
+	      <div class="sideList" sec:authorize="hasRole('ROLE_ADMIN')">
+	      <!-- /review/adminpageComment -->
+	        <a href="/review/adminpageComment">댓글 리스트</a>
+	      </div>
+	      <div class="sideList" sec:authorize="hasRole('ROLE_USER')">
+	      <!-- /datecourse/getMyDatecourseList -->
+	        <a href="/datecourse/getMyDatecourseList">MY 데이트 코스</a>
+	      </div>
+	      <div class="sideList" sec:authorize="hasRole('ROLE_USER')">
+	      <!-- /like/mypageLikeList -->
+	        <a href="/like/mypageLikeList">좋아요 리스트</a>
+	      </div>
+	      <div class="sideList" sec:authorize="hasRole('ROLE_USER')">
+	      <!-- /user/editMyinfo -->
+	        <a th:href="@{/user/editMyinfo/{userId} (userId=${#authentication.principal.username})}">회원정보 수정</a>
+	      </div>
+	      <div id="sideImgWrapper" sec:authorize="hasRole('ROLE_USER')" style="height:calc(100% - 345px)">
+	        <img id="sideImg" th:src="@{/images/img5.png}">
+	      </div>
+	      <div id="sideImgWrapper" sec:authorize="hasRole('ROLE_ADMIN')" style="height:calc(100% - 575px)">
+	        <img id="sideImg" th:src="@{/images/img5.png}">
+	      </div>
+	    </div>
+	</aside>
+</body>
+</html>

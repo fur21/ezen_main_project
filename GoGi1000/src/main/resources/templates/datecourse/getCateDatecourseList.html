@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http:///www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/layout}">
+
+<!-- head 영역 시작 -->
+<!-- 개별적으로 사용할 css, js 링크 걸기 위해서 남겨둠 -->
+<head>
+  <th:block layout:fragment="css">
+      <link rel="stylesheet" th:href="@{/css/getCateDatecourseList.css}"/>
+  </th:block>
+  <th:block layout:fragment="script">
+    <script th:inline="javascript">
+      $(function() {
+		// 아이디 유무
+		const loginUserId = /*[[${#authentication.principal}]]*/;
+		
+		console.log(loginUserId);
+		
+        // 가격대 적용 여부 flag
+        let btnPriceFlag = false;
+
+        // 화면 오픈 시, 데이트 코스 분류 중 '전체'에 효과 넣기
+        $("#datecourse-cate-wrapper").children().children().first().attr('class','isSelect');
+        $("#datecourse-cate-wrapper").children().children().first().css("background-color", "#ee2d7a");
+        $("#datecourse-cate-wrapper").children().children().first().css("color", "white");
+
+        /* 데이트 코스 분류 hover 효과 및 클릭 효과, 데이트 코스 분류 선택에 따른 카테고리 항목 표시*/
+        $(".datecourse-cate a").on({
+          mouseover: function() {
+            $(this).css("background-color", "#ee2d7a");
+            $(this).css("color", "white");
+          },
+          mouseleave: function() {
+            if($(this).attr('class') !='isSelect') {
+              $(this).css("background-color", "white");
+              $(this).css("color", "black");
+            }
+          },
+          click: function() {
+            // 전체 데이트 코스 분류 전체 설정
+            $(".datecourse-cate a").css("background-color", "white");
+            $(".datecourse-cate a").css("color", "black");
+            $(".datecourse-cate a").removeClass("isSelect");
+
+            // 선택된 데이트 코스 분류에 대해서만 설정
+            $(this).attr('class','isSelect');
+            $(this).css("background-color", "#ee2d7a");
+            $(this).css("color", "white");
+
+            // 데이트 코스 분류 선택에 따른 카테고리 항목 표출
+            // 데이트 코스 분류가 전체일 경우, 모든 카테고리 항목 표출
+            if($(this).text() == "전체") {
+              $("#datecourse-detail-cate-inoutYn-wrapper").css("display", "block");
+              $("#datecourse-detail-cate-foodType-wrapper").css("display", "block");
+              $("#datecourse-detail-cate-petYn-wrapper").css("display", "block");
+            } else {
+              // 데이트 코스 분류가 놀거리일 경우, 실내/외 카테고리 항목 표출
+              if($(this).text() == "놀거리") {
+                $("#datecourse-detail-cate-inoutYn-wrapper").css("display", "block");
+              } else {
+                $("#datecourse-detail-cate-inoutYn-wrapper").css("display", "none");
+              }
+              // 데이트 코스 분류가 맛집일 경우, 음식종류 카테고리 항목 표출
+              if($(this).text() == "맛집") {
+                $("#datecourse-detail-cate-foodType-wrapper").css("display", "block");
+              } else {
+                $("#datecourse-detail-cate-foodType-wrapper").css("display", "none");
+              }
+              // 데이트 코스 분류가 카페일 경우, 반려동물 동반 가능여부 카테고리 항목 표출
+              if($(this).text() == "카페") {
+                $("#datecourse-detail-cate-petYn-wrapper").css("display", "block");
+              } else {
+                $("#datecourse-detail-cate-petYn-wrapper").css("display", "none");
+              }
+            }
+
+            // 데이트 코스 분류값 셋팅
+            $("#datecourseCategory").val($(this).data("datecoursecategory"));
+
+            // 정렬 조회조건 초기값으로 셋팅
+            $("#orderCondition").val($("#datecourse-list-option-latest").data("ordercondition"));
+
+            // 적용된 모든 옵션 초기화 및 데이트 코스 리스트 조회
+            fnFilterClear();
+          }
+        });
+
+
+        /* 가격대 입력 시, 천단위 콤마 추가하기 */
+        // 최소가격
+        $("#datecourseMinPriceView").on('keyup', function() {
+          let currentThis = $(this);
+
+          // 입력 범위 체크
+          if($(this).val().replace(/,/g, '') > 100000000) {
+            alert("입력 범위를 넘었습니다.");
+
+            // 입력값 초기화
+            $(this).val("");
+            $("#datecourseMinPrice").val("");
+            return;
+          }
+
+          $("#datecourseMinPrice").val($(this).val().replace(/,/g, ''));
+          numberFormat(currentThis);
+        });
+
+        // 최대가격
+        $("#datecourseMaxPriceView").on('keyup', function() {
+          let currentThis = $(this);
+
+          // 입력 범위 체크
+          if($(this).val().replace(/,/g, '') > 100000000) {
+            alert("입력 범위를 넘었습니다.");
+
+            // 입력값 초기화
+            $(this).val("");
+            $("#datecourseMaxPrice").val("");
+            return;
+          }
+
+          $("#datecourseMaxPrice").val($(this).val().replace(/,/g, ''));
+          numberFormat(currentThis);
+        });
+
+
+        /* 선택된 체크박스 카테고리 상세 옵션 추가or삭제 */
+        $("input:checkbox").each(function(index) {
+          $(this).on("change", function() {
+            let chkCount = $("input[type='checkbox']:checked").length; // 선택된 체크박스 개수
+            let checkBoxId = ""; // 선택된 체크박스 id
+            let viewVal = ""; // 선택된 필터명
+            let filterFlag = 0; // 선택된 체크박스 index
+
+            // 선택된 카테고리 상세 옵션이 1개 이상이거나 가격범위가 적용된 경우 선택 초기화 버튼 표출
+            if(chkCount > 0 || btnPriceFlag != false) {
+              $("#btnFilterClear").css("display", "block");
+            } else {
+              $("#btnFilterClear").css("display", "none");
+            }
+
+            if($(this).is(":checked")) { // 체크된 경우
+              checkBoxId = $(this).attr("id");
+              viewVal = $(this).attr('data-view-value');
+              filterFlag = index;
+
+              // 선택된 카테고리 상세 옵션 div로 생성 후, 선택필터 영역에 추가
+              $("#datecourse-detail-cate-filter-items").append(makeDiv(checkBoxId, viewVal, filterFlag));
+
+              // 실내/외 체크박스의 경우, 실내 선택 시 실외 필터 삭제 / 이 반대의 경우도 삭제되도록
+              if(checkBoxId == "datecourseInoutYn-in") {
+                $("img[data-check-id='datecourseInoutYn-out']").parent().remove();
+              } else if(checkBoxId == "datecourseInoutYn-out") {
+                $("img[data-check-id='datecourseInoutYn-in']").parent().remove();
+              }
+
+              /* 데이트 코스 카테고리 상세 옵션 선택 시, 데이트 코스 리스트 조회 */
+              fnGetCateDatecourseList(0);
+
+            } else { // 체크되지 않은 경우
+              filterFlag = index;
+
+              // 선택필터 영역에 추가했던 div 삭제
+              $("#filterDiv" + filterFlag).remove();
+
+              /* 데이트 코스 카테고리 상세 옵션 선택 시, 데이트 코스 리스트 조회 */
+              fnGetCateDatecourseList(0);
+            }
+          });
+        });
+
+
+        /* 타입이 체크박스인 상세 옵션 관련 X 이미지 클릭 시, 옵션 삭제 및 선택된 상세 옵션 체크해제 */
+        // 동적으로 생성된 태그의 경우, 아래와 같이 작성해준다!
+        $(document).on("click", ".xImg", function() {
+          let checkId = $(this).attr('data-check-id');
+
+          // 기존 선택된 카테고리 상세 옵션 체크해제
+          $("input:checkbox[id='" + checkId + "']").prop("checked", false);
+
+          // 선택필터 영역에 추가했던 div 삭제
+          $(this).parent().remove();
+
+          // 선택된 카테고리 상세 옵션이 1개 이상이거나 가격범위가 적용된 경우 선택 초기화 버튼 표출
+          if($("input[type='checkbox']:checked").length > 0 || btnPriceFlag != false) {
+            $("#btnFilterClear").css("display", "block");
+          } else {
+            $("#btnFilterClear").css("display", "none");
+          }
+
+          /* 데이트 코스 리스트 조회 */
+          fnGetCateDatecourseList(0);
+        });
+
+
+        /* 가격대 적용 버튼 클릭 시, 선택필터 영역에 표출 */
+        $("#btnPriceApply").on("click", function() {
+          let minPrice = $("#datecourseMinPriceView").val();
+          let maxPrice = $("#datecourseMaxPriceView").val();
+
+          if((minPrice != null && minPrice != "") || (maxPrice != null && maxPrice != "")) {
+
+            // 가격대 적용 후, 가격대를 수정하여 재적용 시 이전 div 삭제 후 재적용
+            if(btnPriceFlag) {
+              // 선택필터 영역에 추가했던 가격 관련 div 삭제
+              $("#priceXImg").parent().remove();
+            }
+
+            btnPriceFlag = true;
+
+            let htmlStr = `
+                        <div style="height: 30px; display: flex; align-items: center; margin-right: 15px; text-align: center;" id="filterPriceDiv">
+                          <span style="font-size: 0.9rem; color: #F27370; margin-right: 10px;">${minPrice} ~ ${maxPrice}</span>
+                          <img src="/images/x.png" style="cursor: pointer;" width="15px" height="15px"
+                              id="priceXImg" data-min-price-id="datecourseMinPriceView" data-max-price-id="datecourseMaxPriceView">
+                        </div>
+                        `;
+
+            // 가격대 옵션 div로 생성 후, 선택필터 영역에 추가
+            $("#datecourse-detail-cate-filter-items").append(htmlStr);
+
+            // 선택 초기화 버튼 표출
+            $("#btnFilterClear").css("display", "block");
+
+
+            /* 가격대 적용 시, 데이트 코스 리스트 조회 */
+            fnGetCateDatecourseList(0);
+          }
+        });
+
+        /* 가격대 옵션 관련 X 이미지 클릭 시, 옵션 삭제 및 가격 옵션 초기화 */
+        $(document).on("click", "#priceXImg", function() {
+          btnPriceFlag = false;
+
+          // 선택필터 영역에 추가했던 가격 관련 div 삭제
+          $(this).parent().remove();
+
+          // 입력된 가격 범위 초기화
+          $("#datecourseMinPriceView").val("");
+          $("#datecourseMaxPriceView").val("");
+
+          // back 단으로 보낼 실제 가격 value도 초기화
+          $("#datecourseMinPrice").val(0);
+          $("#datecourseMaxPrice").val(0);
+
+          // 선택된 체크박스 카테고리 상세 옵션에 따라 선택 초기화 버튼 표출
+          if($("input[type='checkbox']:checked").length > 0) {
+            $("#btnFilterClear").css("display", "block");
+          } else {
+            $("#btnFilterClear").css("display", "none");
+          }
+
+          /* 데이트 코스 리스트 조회 */
+          fnGetCateDatecourseList(0);
+        });
+
+
+        /* 최신순 추천순 버튼 클릭 시 효과 설정 */
+        $(".datecourse-list-option-common").on("click", function() {
+          // 정렬 조회조건 값 셋팅
+          $("#orderCondition").val($(this).data("ordercondition"));
+
+          $(".datecourse-list-option-common").css("background-color", "white");
+          $(this).css("background-color", "#f1c40f");
+
+          /* 데이트 코스 리스트 조회 */
+          fnGetCateDatecourseList(0);
+        });
+
+
+        /* 좋아요 버튼 클릭 시 효과 설정 */
+        // 동적으로 생성된 태그이기에 아래와 같이 작성해준다!
+         $(document).on("click", ".likeImg", function() {
+		  const selectLikeImg = $(this);
+		  
+		  
+		  if(loginUserId == 'anonymousUser') {
+			  alert("로그인 후 사용하시길 바랍니다.")
+			  window.location.href="/user/login";
+		  }
+		  else {
+			  if($(this).attr("src") == "/images/emptystar.png") {
+                $.ajax({
+                    url: '/like/InsertLike',
+                    type: 'post',
+                    data: {datecourseNo : $(this).attr('data-datecourse-no')},
+                    success: function(obj) {
+                        alert("'좋아요' 하였습니다.");
+                        selectLikeImg.attr("src", "/images/yellowstar.png");
+                    },
+                    error: function(e) {
+                        console.log(e);
+                    }
+                });
+              } else {
+                $.ajax({
+                	url: '/like/deleteLike',
+                	type: 'delete',
+                	data: {datecourseNo : $(this).attr('data-datecourse-no')},
+                	success: function(obj) {
+                		alert("'좋아요' 취소하였습니다.");
+                		selectLikeImg.attr("src", "/images/emptystar.png");
+                	},
+                	error: function(e) {
+                		console.log(e);
+                	}
+                });
+              }
+		  }
+        });
+
+        // 페이지 번호 클릭 관련 ajax 처리
+        $(document).on("click", ".datecourese-list-pagination-button a", function(e) {
+          e.preventDefault();
+
+          const page = $(this).attr("href");
+
+          // 데이트 코스 리스트 조회
+          fnGetCateDatecourseList(page);
+        });
+
+        // 데이트 코스 이미지 클릭 시, 데이트 코스 상세 페이지로 이동
+        $(document).on("click", ".mainImg", function() {
+          let datecourseNo = $(this).data("datecourse-no");
+
+          window.location.href = "/main/updateCateDatecourseCnt/" + datecourseNo;
+        });
+      });
+
+      /***********************************
+       메소드 영역
+       ************************************/
+      // 콤마 찍기
+      function comma(str) {
+        str = String(str);
+        return str.replace(/(\d)(?=(?:\d{3})+(?!\d))/g, '$1,');
+      }
+
+      // 콤마 풀기
+      function uncomma(str) {
+        str = String(str);
+        return str.replace(/[^\d]+/g, '');
+      }
+
+      // 콤마 형식으로 출력
+      function numberFormat(obj) {
+        obj.val(comma(uncomma(obj.val())));
+      }
+
+      // 선택된 카테고리 상세 옵션 관련 div 생성
+      function makeDiv(inputId, viewVal, filterFlag) {
+        let htmlStr = `
+                    <div style="height: 30px; display: flex; align-items: center; margin-right: 20px; text-align: center;" id="filterDiv${filterFlag}">
+                      <span style="font-size: 0.9rem; color: #F27370; margin-right: 10px;">${viewVal}</span>
+                      <img src="/images/x.png" style="cursor: pointer;" width="15px" height="15px" class="xImg" data-check-id="${inputId}">
+                    </div>
+                    `;
+
+        return htmlStr;
+      }
+
+      // 적용된 모든 옵션 초기화 및 데이트 코스 리스트 조회
+      function fnFilterClear() {
+        // 모든 체크박스 해제
+        $("input:checkbox").prop("checked", false);
+
+        // 선택필터 영역 자식(체크박스 카테고리 상세 옵션, 가격범위) 모두 삭제
+        $("#datecourse-detail-cate-filter-items").children().remove();
+
+        // 입력된 가격 범위 초기화
+        $("#datecourseMinPriceView").val("");
+        $("#datecourseMaxPriceView").val("");
+
+        // back 단으로 보낼 실제 가격 value도 초기화
+        $("#datecourseMinPrice").val(0);
+        $("#datecourseMaxPrice").val(0);
+
+        // 선택 초기화 버튼 없애기
+        $("#btnFilterClear").css("display", "none");
+
+        // 정렬 조회조건 초기화
+        $(".datecourse-list-option-common").css("background-color", "white");
+        $("#datecourse-list-option-latest").css("background-color", "#f1c40f");
+
+        // 데이트 코스 리스트 조회
+        fnGetCateDatecourseList(0);
+      }
+
+
+      /* 데이트 코스 분류 및 카테고리 상세 옵션 선택에 따른 데이트 코스 리스트 조회 */
+      function fnGetCateDatecourseList(page) {
+        // 화면상에서만 보이는 최저가, 최고가 부분 submit 되지 않도록
+        $("#datecourseMinPriceView").attr("disabled", true);
+        $("#datecourseMaxPriceView").attr("disabled", true);
+
+        // 데이트 코스 분류값 셋팅
+        let datecourseCategory = $("#datecourseCategory").val();
+
+        // 최저가 혹은 최고가 적용하지 않은 경우 0으로 초기화
+        if($("#datecourseMinPrice").val() == null || $("#datecourseMinPrice").val() == "") {
+          $("#datecourseMinPrice").val(0);
+        }
+
+        if($("#datecourseMaxPrice").val() == null || $("#datecourseMaxPrice").val() == "") {
+          $("#datecourseMaxPrice").val(0);
+        }
+
+        // 정렬 조회조건 셋팅
+        let orderCondition = $("#orderCondition").val();
+
+        let formData = $("#datecourseCateForm").serialize() +
+                "&page=" + page +
+                "&datecourseCategory=" + datecourseCategory +
+                "&orderCondition=" + orderCondition;
+
+        $.ajax({
+          url: '/datecourse/getPageCateDatecourseList',
+          type: 'get',
+          data: formData,
+          success: function(obj) {
+            console.log(obj);
+
+            // 화면상에서만 보이는 최저가, 최고가 부분 disabled 취소
+            $("#datecourseMinPriceView").attr("disabled", false);
+            $("#datecourseMaxPriceView").attr("disabled", false);
+
+            let htmlStr = "";
+
+            // 조회된 결과가 없을 경우
+            if(obj.getCateDatecourseList.content.length == 0) {
+              // 조회정렬 조건 영역 숨기기
+              $("#datecourse-list-option-wrapper").css("display", "none");
+
+              // datecourse-list-wrapper div의 첫번째 자식 삭제
+              $("#datecourse-list-wrapper").children(":first").remove();
+
+              // 기존 리스트 div 삭제
+              $("#datecourse-list").children().remove();
+
+              htmlStr = `
+                <p id="searchCount" style="color: lightgray;">조회된 결과가 없습니다.</p>
+              `;
+
+              // 조회결과 관련 태그 추가(첫번째 자식 노드로)
+              $("#datecourse-list-wrapper").prepend(htmlStr);
+            } else {
+              // datecourse-list-wrapper div의 첫번째 자식 삭제
+              $("#datecourse-list-wrapper").children(":first").remove();
+
+              htmlStr = `
+                <p id="searchCount">총 <span id="datecourseListCnt">${obj.getCateDatecourseList.content.length}</span>개의 알콩달콩한 데이트 코스가 있습니다.</p>
+              `;
+
+              // 조회결과 관련 태그 추가(첫번째 자식 노드로)
+              $("#datecourse-list-wrapper").prepend(htmlStr);
+
+              // 조회정렬 조건 영역 보이기
+              $("#datecourse-list-option-wrapper").css("display", "flex");
+
+              htmlStr = "";
+
+              // 추가할 데이트 코스 리스트 관련 div 생성
+              for(let i=0; i<obj.getCateDatecourseList.content.length; i++) {
+                let likeImgSrc = "";
+
+                if(obj.getCateDatecourseList.content[i].likeYn != "Y") {
+                  likeImgSrc = "emptystar.png";
+                } else {
+                  likeImgSrc = "yellowStar.png";
+                }
+
+                htmlStr += `
+                      <div class="datecourese-list-items">
+                        <div class="mainImg-wrapper">
+                          <img src="/upload/${obj.getCateDatecourseList.content[i].imageNm}" class="mainImg"
+                               data-datecourse-no="${obj.getCateDatecourseList.content[i].datecourseNo}">
+                        </div>
+                        <div class="datecourese-list-items-info">
+                          <p class="datecourese-list-items-name">${obj.getCateDatecourseList.content[i].datecourseNm}</p>
+                          <p class="datecourese-list-items-summary">${obj.getCateDatecourseList.content[i].datecourseSummary}</p>
+                        </div>
+                        <div class="datecourse-list-items-detail">
+                          <div class="datecourse-list-items-count">
+                            <p>조회수 ${obj.getCateDatecourseList.content[i].datecourseCnt}</p>
+                            <p>좋아요 ${obj.getCateDatecourseList.content[i].likeCnt}</p>
+                          </div>
+                          <div class="datecourese-list-like">
+                            <img src="/images/${likeImgSrc}" class="likeImg"
+                                 data-datecourse-no="${obj.getCateDatecourseList.content[i].datecourseNo}">
+                          </div>
+                        </div>
+                      </div>
+                  `;
+              }
+
+              // 기존 리스트 div 삭제
+              $("#datecourse-list").children().remove();
+
+              // 조회된 데이트 코스 리스트 관련 div 추가
+              $("#datecourse-list").append(htmlStr);
+            }
+
+            // 페이지네이션 리스트 영역 삭제
+            $(".datecourese-list-pagination").remove();
+
+            // 페이지네이션 관련 셋팅
+            const pageNumber = obj.getCateDatecourseList.pageable.pageNumber;
+            const pageSize = obj.getCateDatecourseList.pageable.pageSize;
+            const totalPages = obj.getCateDatecourseList.totalPages;
+            const startPage = Math.floor(pageNumber / pageSize) * pageSize + 1;
+            const tempEndPage = startPage + pageSize - 1;
+            const endPage = tempEndPage > totalPages ? totalPages : tempEndPage;
+
+            htmlStr = "";
+
+            // 데이트 코스 리스트가 있을 때만 페이지네이션 영역 표시
+            if(obj.getCateDatecourseList.totalElements > 0) {
+              htmlStr += `
+                    <ul class="datecourese-list-pagination">
+              `;
+
+              // 이전 버튼
+              if(pageNumber > 0) {
+                htmlStr += `
+                    <li class="datecourese-list-pagination-button">
+                        <a href="${pageNumber - 1}">&lt</a>
+                    </li>
+              `;
+              }
+
+              for(let i=startPage-1; i < startPage + endPage -1; i++) {
+                htmlStr += `
+                    <li class="datecourese-list-pagination-button">
+                        <a href="${i}">${startPage + i}</a>
+                    </li>
+              `;
+              }
+
+              // 다음 버튼
+              if(pageNumber < totalPages - 1) {
+                htmlStr += `
+                    <li class="datecourese-list-pagination-button">
+                        <a href="${pageNumber + 1}">&gt</a>
+                    </li>
+              `;
+              }
+
+              htmlStr += `</ul>`;
+            }
+
+            //페이지네이션 리스트 추가
+            $("#datecourese-list-page-wrapper").html(htmlStr);
+          },
+          error: function(e) {
+            console.log(e);
+          }
+        });
+      }
+
+      // 실내/외 중복선택 방지
+      function fnNoMultiChk(chk) {
+        let datecourseInoutYn = $("input[name='datecourseInoutYn']");
+
+        for (let i=0; i<datecourseInoutYn.length; i++) {
+          if(datecourseInoutYn[i] != chk) {
+            datecourseInoutYn[i].checked = false;
+          }
+        }
+      }
+    </script>
+  </th:block>
+</head>
+<!-- head 영역 끝 -->
+
+<body>
+  <div layout:fragment="content">
+    <div id="datecourse-list-container">
+
+      <!-- 데이트 코스 분류 영역 -->
+      <div id="datecourse-cate-wrapper">
+        <input type="hidden" id="datecourseCategory" value="ALL">
+        <div class="datecourse-cate">
+          <a href="#" data-datecoursecategory="ALL" onclick="return false;">전체</a>
+        </div>
+        <div class="datecourse-cate">
+          <a href="#" data-datecoursecategory="B0001" onclick="return false;">놀거리</a>
+        </div>
+        <div class="datecourse-cate">
+          <a href="#" data-datecoursecategory="B0002" onclick="return false;">맛집</a>
+        </div>
+        <div class="datecourse-cate">
+          <a href="#" data-datecoursecategory="B0003" onclick="return false;">카페</a>
+        </div>
+      </div>
+
+      <!-- 데이트 코스 카테고리 영역 -->
+      <form id="datecourseCateForm">
+        <input type="hidden" name="datecourseArea" id="datecourseArea" th:value="${datecourseArea}">
+        <input type="hidden" name="searchKeyword" th:value="${searchKeyword}">
+        <div id="datecourse-detail-cate-wrapper">
+          <div id="datecourse-detail-cate-title">
+            <h2>카테고리</h2>
+          </div>
+          <div class="datecourse-detail-cate" id="datecourse-detail-cate-inoutYn-wrapper">
+            <div class="datecourse-detail-cate-field">
+              <div class="datecourse-detail-cate-text">
+                실내/외
+              </div>
+              <div class="datecourse-detail-cate-items" id="datecourse-detail-cate-inoutYn">
+                <input type="checkbox" name="datecourseInoutYn" id="datecourseInoutYn-in"
+                       value="Y" data-view-value="실내" onclick="fnNoMultiChk(this);">
+                <label for="datecourseInoutYn-in">실내</label>
+                <input type="checkbox" name="datecourseInoutYn" id="datecourseInoutYn-out"
+                       value="N" data-view-value="실외" onclick="fnNoMultiChk(this);">
+                <label for="datecourseInoutYn-out">실외</label>
+              </div>
+            </div>
+            <hr>
+          </div>
+          <div class="datecourse-detail-cate" id="datecourse-detail-cate-foodType-wrapper">
+            <div class="datecourse-detail-cate-field">
+              <div class="datecourse-detail-cate-text">
+                음식종류
+              </div>
+              <div class="datecourse-detail-cate-items" id="datecourse-detail-cate-foodType">
+                <input type="checkbox" name="datecourseFoodType" id="datecourseFoodType-ko" value="C0001" data-view-value="한식">
+                <label for="datecourseFoodType-ko">한식</label>
+                <input type="checkbox" name="datecourseFoodType" id="datecourseFoodType-en" value="C0002" data-view-value="양식">
+                <label for="datecourseFoodType-en">양식</label>
+                <input type="checkbox" name="datecourseFoodType" id="datecourseFoodType-zh" value="C0003" data-view-value="중식">
+                <label for="datecourseFoodType-zh">중식</label>
+                <input type="checkbox" name="datecourseFoodType" id="datecourseFoodType-ja" value="C0004" data-view-value="일식">
+                <label for="datecourseFoodType-ja">일식</label>
+                <input type="checkbox" name="datecourseFoodType" id="datecourseFoodType-snack" value="C0005" data-view-value="분식">
+                <label for="datecourseFoodType-snack">분식</label>
+                <input type="checkbox" name="datecourseFoodType" id="datecourseFoodType-etc" value="C0006" data-view-value="기타">
+                <label for="datecourseFoodType-etc">기타</label>
+              </div>
+            </div>
+            <hr>
+          </div>
+          <div class="datecourse-detail-cate">
+            <div class="datecourse-detail-cate-field">
+              <div class="datecourse-detail-cate-text">
+                주차여부
+              </div>
+              <div class="datecourse-detail-cate-items">
+                <input type="checkbox" name="datecourseParkingYn" id="datecourseParkingYn" value="Y" data-view-value="주차가능">
+                <label for="datecourseParkingYn">가능</label>
+              </div>
+            </div>
+            <hr>
+          </div>
+          <div class="datecourse-detail-cate" id="datecourse-detail-cate-petYn-wrapper">
+            <div class="datecourse-detail-cate-field">
+              <div id="datecourse-detail-cate-petYn">
+                반려동물 동반<br>가능여부
+              </div>
+              <div class="datecourse-detail-cate-items">
+                <input type="checkbox" name="datecoursePetYn" id="datecoursePetYn" value="Y" data-view-value="반려동물 동반 가능">
+                <label for="datecoursePetYn">가능</label>
+              </div>
+            </div>
+            <hr>
+          </div>
+          <div class="datecourse-detail-cate">
+            <div class="datecourse-detail-cate-field">
+              <div class="datecourse-detail-cate-text">
+                가격대
+              </div>
+              <div class="datecourse-detail-cate-items">
+                <input type="text" name="datecourseMinPriceView"
+                       class="datecourse-price-common" id="datecourseMinPriceView" placeholder="최저가">
+                ~
+                <input type="text" name="datecourseMaxPriceView"
+                       class="datecourse-price-common" id="datecourseMaxPriceView" placeholder="최고가">
+                <button type="button" id="btnPriceApply">가격대 적용</button>
+                <!-- 실제 back단으로 넘어갈 price -->
+                <input type="hidden" name="datecourseMinPrice"
+                       class="datecourse-price-common" id="datecourseMinPrice">
+                <input type="hidden" name="datecourseMaxPrice"
+                       class="datecourse-price-common" id="datecourseMaxPrice">
+              </div>
+            </div>
+            <hr>
+          </div>
+          <div class="datecourse-detail-cate">
+            <div id="datecourse-detail-cate-filter-field">
+              <div id="datecourse-detail-cate-filter">
+                선택필터
+              </div>
+              <!-- 선택된 카테고리 상세 옵션들 표출될 영역 -->
+              <div id="datecourse-detail-cate-filter-items">
+
+              </div>
+              <!-- 선택 초기화 버튼 -->
+              <button id="btnFilterClear" onclick="fnFilterClear(); return false;">선택 초기화</button>
+            </div>
+            <hr>
+          </div>
+        </div>
+      </form>
+
+      <!-- 데이트 코스 리스트 영역 -->
+      <div id="datecourse-list-wrapper">
+        <!-- 조회결과 출력 영역 -->
+        <p id="searchCount" th:if="${searchMapDatecourseList.totalElements == 0}" style="color: lightgray;">
+        	조회된 결과가 없습니다.
+        </p>
+        <p id="searchCount" th:unless="${searchMapDatecourseList.totalElements == 0}">
+        	총 <span id="datecourseListCnt" th:text="${searchMapDatecourseList.totalElements}"></span>개의 알콩달콩한 데이트 코스가 있습니다.
+        </p>
+        <div id="datecourse-list-option-wrapper" th:if="${searchMapDatecourseList.totalElements > 0}">
+          <div id="datecourse-list-option">
+            <input type="hidden" id="orderCondition" value="new">
+            <div id="datecourse-list-option-latest" class="datecourse-list-option-common"
+                 data-ordercondition="new">최신순
+            </div>
+            <div id="datecourse-list-option-reco" class="datecourse-list-option-common"
+                 data-ordercondition="reco">추천순
+            </div>
+          </div>
+        </div>
+        <div id="datecourse-list">
+        <!-- 데이트 코스 리스트 추가 영역 -->
+        	<div class="datecourese-list-items" th:each="searchMapDatecourseList : ${searchMapDatecourseList}">
+	            <div class="mainImg-wrapper">
+	              <img th:src="@{'/upload/' + ${searchMapDatecourseList.imageNm}}" class="mainImg"
+                       th:data-datecourse-no="${searchMapDatecourseList.datecourseNo}">
+	            </div>
+	            <div class="datecourese-list-items-info">
+	              <p class="datecourese-list-items-name" th:text="${searchMapDatecourseList.datecourseNm}"></p>
+	              <p class="datecourese-list-items-summary" th:text="${searchMapDatecourseList.datecourseSummary}"></p>
+	            </div>
+	            <div class="datecourse-list-items-detail">
+	              <div class="datecourse-list-items-count">
+	                <span class="datecourseLikeCount">조회수&nbsp; <p th:text="${searchMapDatecourseList.datecourseCnt}"></p></span>
+	                <span class="datecourseLikeCount">좋아요&nbsp; <p th:text="${searchMapDatecourseList.likeCnt}"></p></span>
+	              </div>
+	              <div class="datecourese-list-like">
+	                <img th:src="${searchMapDatecourseList.likeYn} eq 'Y' ? @{/images/yellowStar.png} : @{/images/emptystar.png}" 
+	                		class="likeImg" th:data-datecourse-no="${searchMapDatecourseList.datecourseNo}">
+	              </div>
+	            </div>
+	        </div>
+        </div>
+      </div>
+
+      <!-- page 번호 영역 -->
+      <div id="datecourese-list-page-wrapper">
+        <ul class="datecourese-list-pagination" th:if="${searchMapDatecourseList.totalElements > 0}"
+												th:with="pageNumber = ${searchMapDatecourseList.pageable.pageNumber},
+												 pageSize = ${searchMapDatecourseList.pageable.pageSize},
+												 totalPages = ${searchMapDatecourseList.totalPages},
+												 startPage = ${T(java.lang.Math).floor(pageNumber / pageSize) * pageSize + 1},
+												 tempEndPage = ${startPage + pageSize - 1},
+												 endPage = ${tempEndPage > totalPages ? totalPages : tempEndPage}">
+          <li class="datecourese-list-pagination-button" th:if="${pageNumber > 0}">
+            <a th:href="${pageNumber - 1}">&lt</a>
+          </li>
+          <li class="datecourese-list-pagination-button" th:each="page : ${#numbers.sequence(startPage, endPage)}">
+            <a th:href="${page - 1}" th:text="${page}"></a>
+          </li>
+          <li class="datecourese-list-pagination-button" th:if="${pageNumber < totalPages - 1}">
+            <a th:href="${pageNumber + 1}">&gt</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

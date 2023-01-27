@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{layouts/layout-admin}">
+
+<head>
+    <th:block layout:fragment="css">
+        <link rel="stylesheet" th:href="@{/css/getHotdeal.css}" />
+    </th:block>
+
+    <th:block layout:fragment="script">
+        <script th:inline="javascript" src="https://code.jquery.com/jquery-3.6.1.js"></script>
+        
+        
+        <script th:inline="javascript">
+            /*업데이트 파일 처리*/
+            
+            //추가파일 배열
+            let uploadFiles = [];
+            //기존파일 배열
+            let originFiles = [];
+            //변경파일 배열
+            let changedFiles = [];
+            
+            //유효성 검사
+            $(function () {
+                $("#btnUpd").on("click", function (e) {
+                    if (!($("#hotdealNm").val())) {
+                       e.preventDefault();
+                       alert("핫딜 상품명을 입력해주세요.");
+                       $("#hotdealNm").focus();
+                       return;
+                     }
+                     
+                     if (!($("#hotdealEndDate").val())) {
+                         e.preventDefault();
+                         alert("핫딜 종료일을 입력해주세요.");
+                         $("#hotdealEndDate").focus();
+                         return;			
+                     }
+                     
+                     if (!($("#hotdealOfficialSite").val())) {
+                       e.preventDefault();
+                       alert("핫딜 링크를 입력해주세요.");
+                       $("#hotdealOfficialSite").focus();
+                       return;
+                     }
+                     console.log("test");
+                     console.log($("#hotdealPrice").val())
+                     if (!$("#hotdealPrice").val()) {
+                       e.preventDefault();
+                       alert("기존가를 입력해주세요.");
+                       $("#hotdealPrice").focus();
+                       return;
+                     }
+         	
+                     if (!($("#hotdealSalerate").val())) {
+                       e.preventDefault();
+                       alert("할인율을 입력해주세요.");
+                       $("#hotdealSalerate").focus();
+                       return;
+                     }
+                     if (!($("#hotdealSeller").val())) {
+                         e.preventDefault();
+                         alert("판매처를 입력해주세요");
+                         $("#hotdealSeller").focus();
+                         return;
+                     }
+                     if (!($("#hotdealTel").val())) {
+                         e.preventDefault();
+                         alert("문의 번호를 입력해주세요.");
+                         $("#hotdealTel").focus();
+                         return;
+                     }
+                     
+                     fnUpdateHotdeal();
+                     
+                   })
+
+                $("#uploadFiles").on("change", function (e) {
+                    //input type=file에 추가된 파일들을 변수로 받아옴
+                    const files = e.target.files;
+                    //변수로 받아온 파일들을 배열 형태로 변환
+                    const fileArr = Array.prototype.slice.call(files);
+
+                    //배열에 있는 파일들을 하나씩 꺼내서 처리
+                    for (f of fileArr) {
+                        imageLoader(f);
+                    }
+                });
+                
+	            for (let i = 0; i < $("#datecourseImageCnt").val(); i++) {
+					console.log($("#imageGroup").val());
+					console.log($("#hotdealNo").val());
+					console.log($("#imageNo" + i).val());
+					console.log($("#imageNm" + i).val());
+	
+	                const originFileObj = {
+						imageGroup: $("#imageGroup").val(),
+						referenceNo: $("#hotdealNo").val(),
+	                    imageNo: $("#imageNo" + i).val(),
+	                    imageNm: $("#imageNm" + i).val(),
+	                    imageRgstDate: $("#imageRgstDate").val(),
+	                    //업로드 파일 경로가 각각 다를때는 boardFilePath 속성도 추가
+	                    //파일 상태값(수정되거나 삭제된 파일은 변경)
+	                    imageFileStatus: "N"
+	                };
+					console.log(originFileObj);
+	                originFiles.push(originFileObj);
+	            	console.log(originFiles);   
+	            }
+	            
+
+            });
+
+       
+
+            //미리보기 영역에 들어갈 img태그 생성 및 선택된 파일을 Base64 인코딩된 문자열 형태로 변환
+            function imageLoader(file) {
+                uploadFiles.push(file);
+
+                let reader = new FileReader();
+
+                reader.onload = function (e) {
+                    //이미지를 표출해줄 img태그 선언
+                    let img = document.createElement("img");
+                    img.setAttribute("style", "width: 100%; height: 100%; z-index: none;");
+
+                    //이미지 파일인지 아닌지 체크
+                    if (file.name.toLowerCase().match(/(.*?)\.(jpg|jpeg|png|gif|svg|bmp)$/)) {
+                        //이미지 파일 미리보기 처리
+                        img.src = e.target.result;
+                    }
+
+                    //미리보기 영역에 추가
+                    //미리보기 이미지 태그와 삭제 버튼 그리고 파일명을 표출하는 p태그를 묶어주는 div 만들어서
+                    //미리보기 영역에 추가
+                    $("#image-preview-zone").append(makeDiv(img, file));
+                };
+
+                //파일을 Base64 인코딩된 문자열로 변경
+                reader.readAsDataURL(file);
+            }
+
+            //미리보기 영역에 들어가 div(img+button+p)를 생성하고 리턴
+            function makeDiv(img, file) {
+                //div 생성
+                let div = document.createElement("div");
+                div.setAttribute("style", "display: inline-block; position: relative;"
+                    + " width: 150px; height: 120px; margin: 5px; border: 1px solid black; border-radius:3px; z-index: 1;");
+                    
+                //삭제 button 생성
+                let btn = document.createElement("input");
+                btn.setAttribute("type", "button");
+                btn.setAttribute("value", "x");
+                btn.setAttribute("data-del-file", file.name);
+                btn.setAttribute("style", "width: 30px; height: 30px; position: absolute; border: none;"
+                    + " right: 0px; bottom: 0px; z-index: 999; background-color: rgba(255, 255, 255, 0.1);"
+                    + " color: red;");
+
+                //버튼 클릭 이벤트
+                //버튼 클릭 시 해당 파일이 삭제되도록 설정
+                btn.onclick = function (e) {
+                    //클릭된 버튼
+                    const ele = e.srcElement;
+                    //delFile(파일이름) 속성 꺼내오기: 삭제될 파일명
+                    const delFile = ele.getAttribute("data-del-file");
+
+                    for (let i = 0; i < uploadFiles.length; i++) {
+                        //배열에 담아놓은 파일들중에 해당 파일 삭제
+                        if (delFile == uploadFiles[i].name) {
+                            //배열에서 i번째 한개만 제거
+                            uploadFiles.splice(i, 1);
+                        }
+                    }
+
+                    //버튼 클릭 시 btnAtt에 첨부된 파일도 삭제
+                    //input type=file은 첨부된 파일들을 fileList 형태로 관리
+                    //fileList에 일반적인 File객체를 넣을 수 없고
+                    //DataTransfer라는 클래스를 이용하여 완전한 fileList 형태로 만들어서
+                    //input.files에 넣어줘야 된다.
+                    dt = new DataTransfer();
+
+                    for (f in uploadFiles) {
+                        const file = uploadFiles[f];
+                        dt.items.add(file);
+                    }
+
+                    $("#uploadFiles")[0].files = dt.files;
+
+                    //해당 img를 담고있는 부모태그인 div 삭제
+                    const parentDiv = ele.parentNode;
+                    $(parentDiv).remove();
+                }
+
+                //파일명 표출할 p태그 생성
+                const fName = document.createElement("p");
+                fName.setAttribute("style", "width: 150px; display: inline-block; font-size: 8px; white-space: nowrap; overflow: hidden; text-overflow:ellipsis;");
+                fName.textContent = file.name;
+
+                //div에 하나씩 추가
+                div.appendChild(img);
+                div.appendChild(btn);
+                div.appendChild(fName);
+
+                //완성된 div 리턴
+                return div;
+            }
+
+            function fnImgChange(imageNo) {
+                //기존 파일의 이미지를 클릭했을 때 같은 레벨의 input type="file"을 가져온다.
+                let changedFile = document.getElementById("changedFile" + imageNo);
+                //위에서 가져온 input 강제클릭 이벤트 발생시킴
+                changedFile.click();
+            }
+
+            function fnGetChangedFileInfo(imageNo, e) {
+                //변경된 파일 받아오기
+                const files = e.target.files;
+                //받아온 파일 배열 형태로 변경(싱글파일 업로드여서 파일배열 한개의 인자만 담김)
+                const fileArr = Array.prototype.slice.call(files);
+
+                //변경된 파일들은 변경된 파일 배열에 담아준다.
+                changedFiles.push(fileArr[0]);
+                console.log(changedFiles);
+                //미리보기 화면에서 변경된 파일의 이미지 출력
+                const reader = new FileReader();
+
+                reader.onload = function (ee) {
+                    const img = document.getElementById("img" + imageNo);
+                    const p = document.getElementById("fileNm" + imageNo);
+                    
+                    
+                    p.textContent = fileArr[0].name;
+
+                    //이미지인지 체크
+                    if(fileArr[0].name.toLowerCase().match(/(.*?)\.(jpg|jpeg|png|gif|bmp|svg)$/))
+                        img.src = ee.target.result;
+                }
+
+                reader.readAsDataURL(fileArr[0]);
+                
+                console.log(originFiles);
+                console.log(imageNo);
+                //기존 파일을 담고있는 배열에서 변경이 일어난 파일 수정
+                for (let i = 0; i < originFiles.length; i++) {
+                    if (imageNo == originFiles[i].imageNo) {
+                        originFiles[i].imageFileStatus = "U";
+                        originFiles[i].newFileNm = fileArr[0].name;
+                    }
+                }
+            }
+
+            //x버튼 클릭시 동작하는 메소드
+            function fnImgDel(e) {
+                //클릭된 태그 가져오기
+                let ele = e.srcElement;
+                //delFile속성 값 가져오기(imageNo)
+                let delFile = ele.getAttribute("data-del-file");
+
+                for (let i = 0; i < originFiles.length; i++) {
+                    if (delFile == originFiles[i].imageNo) {
+                        originFiles[i].imageFileStatus = "D";
+                    }
+                }
+                console.log(originFiles)
+                //부모 요소인 div 삭제
+                let div = ele.parentNode;
+                $(div).remove();
+            }
+
+
+            function fnUpdateHotdeal() {
+                dt = new DataTransfer();
+
+                for (f in uploadFiles) {
+                    let file = uploadFiles[f];
+                    dt.items.add(file);
+                }
+
+                $("#uploadFiles")[0].files = dt.files;
+                console.log("#uploadFiles");
+
+                //clearData() 사용하면 배열의 모든 내용이 담기지 않고
+                //파일 하나씩만 담기는 현상이 발생해서 dt를 두 개로 분리하여 사용
+                dt2 = new DataTransfer();
+
+                for (f in changedFiles) {
+                    let file = changedFiles[f];
+                    dt2.items.add(file);
+                }
+                console.log(dt2.files);
+
+                $("#changedFiles")[0].files = dt2.files;
+                console.log($("#changedFiles")[0].files);
+
+                //변경된 파일정보와 삭제된 파일정보를 담고있는 배열 전송
+                $("#originFiles").val(JSON.stringify(originFiles));
+
+                //form.serialize()는 multipart/form-data 전송불가하기 때문에 formdata생성
+                let formData = new FormData($("#updateHotdealForm")[0]);
+                $.ajax({
+                    enctype: 'multipart/form-data',
+                    url: '/hotdeal/updateHotdeal',
+                    type: 'put',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (obj) {
+                        console.log(obj)
+                        //수정된 정보 변경
+                        $("#hotdealNo").val(obj.item.getHotdeal.hotdealNo);
+                        $("#hotdealNm").val(obj.item.getHotdeal.hotdealNm);
+                        $("#hotdealEndDate").val(obj.item.getHotdeal.hotdealEndDate);
+                        $("#hotdealOfficialSite").val(obj.item.getHotdeal.hotdealOfficialSite);
+                        $("#hotdealPrice").val(obj.item.getHotdeal.hotdealPrice);
+                        $("#hotdealSalerate").val(obj.item.getHotdeal.hotdealSalerate);
+                        $("#hotdealSeller").val(obj.item.getHotdeal.hotdealSeller);
+                        $("#hotdealTel").val(obj.item.getHotdeal.hotdealTel);
+                        $("#hotdealSummary").text(obj.item.getHotdeal.hotdealSummary);
+                        $("#hotdealDesc").text(obj.item.getHotdeal.hotdealDesc);
+                        alert("수정이 완료되었습니다.");
+                        window.location.href="/hotdeal/hotdealList"
+                    },
+                    error: function (e) {
+                        console.log(e);
+                    }
+                });
+            }
+        </script>
+    </th:block>
+</head>
+
+<body>
+    <main>
+        <div layout:fragment="content">
+            <div id="hu-content">
+                <h1 style="margin:0;">핫딜 수정</h1>
+                <hr>
+                <div id="hu-form-wrapper">
+                    <form id="updateHotdealForm" method="post"
+                        enctype="multipart/form-data">
+                        <input type="hidden" name="hotdealNo" id="hotdealNo" th:value="${getHotdeal.hotdealNo}">
+                        <input type="hidden" name="hotdealRgstDate" id="hotdealRgstDate" th:value="${getHotdeal.hotdealRgstDate}">
+                        <input type="hidden" name="hotdealUseYn" id="hotdealUseYn" th:value="${getHotdeal.hotdealUseYn}"> 
+                        <input type="hidden" name="originFiles" id="originFiles">
+                        <div id="hotdealNm-wrapper" class="input_wrapper">
+                            <div id="hotdealNm-text" class="label_wrapper"><label for="hotdealNm">핫딜 상품명</label></div>
+                            <input type="text" id="hotdealNm" name="hotdealNm" autocomplete="off"
+                                placeholder="상품명을 입력해주세요." th:value="${getHotdeal.hotdealNm}">
+                        </div>
+                        <div id="hotdealEndDate-wrapper" class="input_wrapper">
+                            <div id="hotdealEndDate-text" class="label_wrapper"><label for="hotdealEndDate">핫딜
+                                    종료일자</label>
+                            </div>
+                            <input type="text" id="hotdealEndDate" name="hotdealEndDate" autocomplete="off"
+                                placeholder="핫딜링크를 입력해주세요." th:value="${getHotdeal.hotdealEndDate}">
+                        </div>
+                        <div id="hotdealOfficialSite-wrapper" class="input_wrapper">
+                            <div id="hotdealOfficialSite-text" class="label_wrapper"><label for="hotdealOfficialSite">핫딜
+                                    링크</label></div>
+                            <input type="text" id="hotdealOfficialSite" name="hotdealOfficialSite" autocomplete="off"
+                                placeholder="핫딜링크를 입력해주세요." th:value="${getHotdeal.hotdealOfficialSite}">
+                        </div>
+                        <div id="hotdealPrice-wrapper" class="input_wrapper">
+                            <div class="label_wrapper"><label for="hotdealPrice">기존가</label></div>
+                            <input type="text" id="hotdealPrice" name="hotdealPrice" autocomplete="off"
+                                placeholder="가격을 입력해주세요." th:value="${getHotdeal.hotdealPrice}">
+                        </div>
+                        <div id="hotdealSalerate-wrapper" class="input_wrapper">
+                            <div id="hotdealSalerate-text" class="label_wrapper"> <label
+                                    for="hotdealSalerate">할인율(%)</label>
+                            </div>
+                            <input type="text" name="hotdealSalerate" id="hotdealSalerate" autocomplete="off"
+                                placeholder="할인율을 입력해주세요." th:value="${getHotdeal.hotdealSalerate}">
+                        </div>
+                         <div id="hotdealSeller-wrapper" class="input_wrapper">
+                            <div id="hotdealSeller-text" class="label_wrapper"> <label for="hotdealSeller">판매처</label></div>
+                            <input type="text" name="hotdealSeller" id="hotdealSeller" autocomplete="off"
+                                placeholder="판매처를 입력해주세요." th:value="${getHotdeal.hotdealSeller}">
+                        </div>
+                        <div id="hotdealTel-wrapper" class="input_wrapper">
+                            <div id="hotdealTel-text" class="label_wrapper"> <label for="hotdealTel">문의번호</label></div>
+                            <input type="text" name="hotdealTel" id="hotdealTel" autocomplete="off"
+                                placeholder="문의번호를 입력해주세요." th:value="${getHotdeal.hotdealTel}">
+                        </div>
+                         <div id="hotdealSummary-wrapper" class="input_wrapper">
+                            <div id="hotdealSummary-text" class="label_wrapper"><label for="hotdealSummary">핫딜 요약정보</label>
+                            </div>
+                            <textarea name="hotdealSummary" cols="70" rows="5" id="hotdealSummary" 
+                                placeholder="핫딜 요약정보 입력란입니다." th:text="${getHotdeal.hotdealSummary}"
+                                th:value="${getHotdeal.hotdealSummary}"></textarea>
+                        </div>
+                        <div id="hotdealDesc-wrapper" class="input_wrapper">
+                            <div id="hotdealDesc-text" class="label_wrapper"><label for="hotdealDesc">핫딜 상세설명</label>
+                            </div>
+                            <textarea name="hotdealDesc" cols="70" rows="10" id="hotdealDesc" placeholder="상세설명 입력란입니다."
+                                th:text="${getHotdeal.hotdealDesc}" th:value="${getHotdeal.hotdealDesc}"></textarea>
+                        </div>
+                        <div id="hotdealImageFile-wrapper">
+                            <div id="hotdealImageFile-text" class="label_wrapper">핫딜 상품<br>이미지 등록</div>
+                            <div>
+                                <input type="file" name="uploadFiles" id="uploadFiles" multiple="multiple"
+                                    accept="image/*">
+                                <label for="uploadFiles">
+                                    <div id="btnUploadFiles">파일첨부</div>
+                                </label>
+                                <input type="file" name="changedFiles" id="changedFiles" multiple="multiple"
+                                    style="display:none">
+                            </div>
+                        </div>
+                        <div id="image-preview-zone" data-placeholder="파일을 첨부하시려면 파일첨부 버튼을 누르세요">
+                            <div th:each="datecourseImage : ${datecourseImageList}" style="display: inline-block; position: relative; 
+                        	width: 150px; height: 120px; margin: 5px; border: 1px solid black; z-index: 1;">
+                                <input type="hidden" th:id="'imageNo' + ${datecourseImageStat.index}"
+                                    th:name="'imageNo' + ${datecourseImageStat.index}"
+                                    th:value="${datecourseImage.imageNo}">
+                                <input type="hidden" th:id="'imageNm' + ${datecourseImageStat.index}"
+                                    th:name="'imageNm' + ${datecourseImageStat.index}"
+                                    th:value="${datecourseImage.imageNm}">
+                                <input type="file" th:id="'changedFile' + ${datecourseImage.imageNo}"
+                                    th:name="'changedFile' + ${datecourseImage.imageNo}" style="display:none;"
+                                    th:onchange="fnGetChangedFileInfo([[${datecourseImage.imageNo}]], event)">
+
+                                <input th:if="${datecourseImageStat.last}" type="hidden" id="datecourseImageCnt"
+                                    name="datecourseImageCnt" th:value="${datecourseImageStat.count}">
+                                <img th:id="'img' + ${datecourseImage.imageNo}"
+                                    th:src="@{'/upload/' + ${datecourseImage.imageNm}}"
+                                    style="width: 100%; height: 100%; z-index: none; cursor:pointer;"
+                                    th:onclick="fnImgChange([[${datecourseImage.imageNo}]])">
+                                    
+                                <input type="button" th:id="btnDel" value="x"
+                                    th:data-del-file="${datecourseImage.imageNo}" style="width:30px; height:30px; position: absolute;
+									 right: 0px; bottom: 0px; z-index: 999; 
+									 background-color: rgba(255, 255, 255, 0.1);color: #f00;"
+									 onclick="fnImgDel(event)">
+                                <p th:id="'fileNm' + ${datecourseImage.imageNo}"
+                                    style="display:inline-block; font-size: 8px;"
+                                    th:text="${datecourseImage.imageOriginNm}">
+                                </p>
+                            </div>
+                           </div>
+                            <div id="button-wrapper">
+                                <button type="button" id="btnUpd">수정</button>
+                                <button type="button" id="btnList"
+                                    th:onclick="'location.href=\''+ @{/hotdeal/hotdealList} + '\''">목록으로</button>
+                            </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
+</html>

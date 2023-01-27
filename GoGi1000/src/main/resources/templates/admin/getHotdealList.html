@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{layouts/layout-admin}">
+
+<head>
+    <th:block layout:fragment="css">
+        <link rel="stylesheet" th:href="@{/css/getHotdealList.css}" />
+    </th:block>
+
+    <th:block layout:fragment="script">
+        <script th:inline="javascript" src="https://code.jquery.com/jquery-3.6.1.js"></script>
+
+        <script th:inline="javascript">
+                $(function () {
+					// 사이드 바 선택 시, 해당 리스트 항목 선택_인겸
+				   $("#side").children().children().eq(3).attr('class','isSelect');
+				   $("#side").children().children().eq(3).css("background-color", "white");
+				   $("#side").children().children().eq(3).css("color", "#ee2d7a");
+				   $("#side").children().children().eq(3).css("border-top-left-radius", "40%")
+				   $("#side").children().children().eq(3).css("border-bottom-left-radius", "40%");
+					
+					
+				//검색 버튼
+                $("#btnSearch").click(function () {
+                    $("input[name='page']").val(0);
+                    $("#searchForm").submit();
+                });
+
+                //엔터키로 검색
+                $("#hotdealSearchKeyword").on("keydown", function (e) {
+                    if (e.keyCode == 13) {
+                        $("#btnSearch").click();
+                    }
+                });
+                
+                //체크박스 배열
+                var chkObj = document.getElementsByName("chk");
+                //체크박스 배열의 길이
+                var rowCnt = chkObj.length;
+                
+                //전체선택 배열
+                $("input[name=chkAll]").click(function () {
+                    var chkArr = $("input[name=chk]");
+                    for (var i = 0; i < chkArr.length; i++) {
+                        chkArr[i].checked = this.checked;
+                    }
+                });
+                
+                //전체 선택 체크박스 클릭 시 선택/선택해제
+                $("input[name=chk]").click(function () {
+                    if ($("input[name='chk']:checked").length == rowCnt) {
+                        $("input[name='chkAll']")[0].checked = true;
+                    } else {
+                        $("input[name='chkAll']")[0].checked = false;
+                    }
+                });
+                
+                $("input[name='selectOption']").on("change", function() {
+					$("#searchCondition").val("ALL");
+					$("#hotdealSearchKeyword").val("");
+					
+					$.ajax({
+                    	url: "/hotdeal/selectHotdealList",
+                        type: 'GET',
+                        data: $("#searchForm").serialize(),
+                        success: function (obj) {
+							console.log(obj)
+							
+							htmlStr="";
+							
+							for(let i=0; i< obj.item.selectHotdealList.content.length; i++) {
+								htmlStr += `
+									<tr>
+										<td><input type="checkbox" name="chk" id="'chk' + ${obj.item.selectHotdealList.content[i].hotdealNo}" value="${obj.item.selectHotdealList.content[i].hotdealNo}"></td>
+										<td>${obj.item.selectHotdealList.content[i].hotdealNo}</td>
+										<td>
+											<a href="/hotdeal/getHotdeal/${obj.item.selectHotdealList.content[i].hotdealNo}">
+											${obj.item.selectHotdealList.content[i].hotdealNm}
+											</a>
+										</td>
+										<td>${obj.item.selectHotdealList.content[i].hotdealRgstDate.substr(0,10)}</td>
+										<td>${obj.item.selectHotdealList.content[i].hotdealEndDate}</td>
+										<td>${obj.item.selectHotdealList.content[i].hotdealUseYn}</td>
+										<td>
+											<a href="/hotdeal/updateHotdeal/${obj.item.selectHotdealList.content[i].hotdealNo}">
+												<button type="button" id="btnUpdate">수정</button>
+											</a>	
+										</td>
+									</tr>
+								`;
+							}
+							$("#hotdealtable").children(":first").children().not(":first").remove();
+							$("#hotdealtable").children(":first").append(htmlStr);
+							
+							
+							// 페이지네이션 리스트 영역 삭제
+            				$(".page-item").remove();
+				
+				            // 페이지네이션 관련 셋팅
+				            const pageNumber = obj.item.selectHotdealList.pageable.pageNumber;
+				            const pageSize = obj.item.selectHotdealList.pageable.pageSize;
+				            const totalPages = obj.item.selectHotdealList.totalPages;
+				            const startPage = Math.floor(pageNumber / pageSize) * pageSize + 1;
+				            const tempEndPage = startPage + pageSize - 1;
+				            const endPage = tempEndPage > totalPages ? totalPages : tempEndPage;
+				
+				            htmlStr = "";
+				
+				            
+				            if(obj.item.selectHotdealList.totalElements > 0) {
+				              htmlStr += `
+				                    <ul class="pagination">
+				              `;
+				
+				              // 이전 버튼
+				              if(pageNumber > 0) {
+				                htmlStr += `
+				                    <li class="page-item">
+				                        <a class="page-link"
+				                        href="/hotdeal/hotdealList?page=${pageNumber - 1},selectOption=${obj.item.selectHotdeal.selectOption},searchCondition=${obj.item.selectHotdeal.searchCondition},searchKeyword=${obj.item.selectHotdeal.searchKeyWord}">&lt</a>
+				                    </li>
+				              `;
+				              }
+				
+				              for(var i = startPage; i <= endPage ; i++) {
+				                htmlStr += `
+				                    <li class="page-item">
+				                        <a class="page-link"
+				                        href="/hotdeal/hotdealList?page=${i-1},selectOption=${obj.item.selectHotdeal.selectOption},searchCondition=${obj.item.selectHotdeal.searchCondition},searchKeyword=${obj.item.selectHotdeal.searchKeyWord}">${i}</a>
+				                    </li>
+				              `;
+				              }
+				
+				              // 다음 버튼
+				              if(pageNumber < totalPages - 1) {
+				                htmlStr += `
+				                    <li class="page-item">
+				                        <a class="page-link"
+				                        href="/hotdeal/hotdealList?page=${pageNumber + 1},selectOption=${obj.item.selectHotdeal.selectOption},searchCondition=${obj.item.selectHotdeal.searchCondition},searchKeyword=${obj.item.selectHotdeal.searchKeyWord}">&gt</a>
+				                    </li>
+				              `;
+				              }
+				
+				              htmlStr += `</ul>`;
+				            }
+				
+				            // 페이지네이션 리스트 추가
+				            $("#hotdeal-page-wrapper").html(htmlStr);
+				          },
+				          error: function(e){
+							  console.log(e);
+						  }
+                    });
+				})
+             })
+               //삭제 버튼 클릭시 선택된 UseYn(Y => N)으로 변경
+                function updateUseYn() {
+                    var valueArr = new Array();
+                    var chkList = $("input[name='chk']");
+                    for (var i = 0; i < chkList.length; i++) {
+                        if (chkList[i].checked) {
+                            valueArr.push(chkList[i].value);
+                        }
+                    }
+                    if (valueArr.length == 0) {
+                            alert("선택된 항목이 없습니다.")
+                    }
+                    else {
+						  let strValueArr = JSON.stringify(valueArr);
+						  
+                          $.ajax({
+                             	url: "/hotdeal/updateHotdealUseYn",
+                                type: 'POST',
+                                data: {
+                                    valueArr : strValueArr
+                                },
+                                success: function (data) {
+									for(let i=0; i< data.pageItems.content.length; i++) {
+										$("#yntd" + i).text(data.pageItems.content[i].hotdealUseYn);
+									}
+									$("input[name=chk]").prop("checked", false);
+                                }
+                            });
+                        }
+                    }
+            
+				
+        </script>
+    </th:block>
+</head>
+
+<body>
+    <main>
+        <div layout:fragment="content">
+            <div id="hl_main">
+                <h1 style="margin:0;">핫딜 리스트</h1>
+                <hr>
+                <div id="hl_content">
+                    <div id="hl_content_table">
+                        <div id="button-wrap">
+                            <input type="checkbox" name="chkAll">전체선택</button>
+                            <button id="btnDel" onclick="updateUseYn();">삭제</button>
+                        </div>
+                        <div id="searchForm-wrapper">
+                            <form id="searchForm" action="/hotdeal/hotdealList" method="get">
+                                <input type="hidden" name="page" value="">
+                               	<div id="select-option-wrapper" style="margin:10px 10px; display:flex; justify-content:right; align-items:center;">
+                               		<input type="radio" name="selectOption" id="selectOption-all" value="ALL" th:if="${selectOption} == null" checked>
+	                            	<label for="selectOption-all" th:if="${selectOption} == null">전체</label>
+	                            	<input type="radio" name="selectOption" id="selectOption-all" value="ALL" th:if="${selectOption} != null"th:attr="checked=${selectOption == 'ALL'? 'true' : 'false'}">
+	                            	<label for="selectOption-all" th:if="${selectOption} != null">전체</label>
+	                              	<input type="radio" name="selectOption" id="selectOption-y" value="Y" th:attr="checked=${selectOption == 'Y' ? 'true' : 'false'}">
+	                            	<label for="selectOption-y">판매중</label>
+	                            	<input type="radio" name="selectOption" id="selectOption-n" value="N" th:attr="checked=${selectOption == 'N' ? 'true' : 'false'}">
+	                            	<label for="selectOption-n">기간만료</label>
+                            	</div>
+                                <select name="searchCondition" id="searchCondition">
+                                    <option value="ALL" th:selected="${searchCondition == 'ALL'}">전체</option>
+                                    <option value="NAME" th:selected="${searchCondition == 'NAME'}">핫딜명</option>
+                                    <option value="DESC" th:selected="${searchCondition =='DESC'}">내용</option>
+                                </select>
+                                <div id="input-wrap">
+                                    <input type="text" style="border:none;" name="searchKeyword" id="hotdealSearchKeyword"
+                                        th:value="${hotdealSearchKeyword}">
+                                    <button type="button" id="btnSearch"><img th:src="@{/images/search.png}" id="searchImg"></button>
+                                </div>
+
+                            </form>
+                        </div>
+                    </div>
+                    <table id="hotdealtable">
+                        <tr>
+                            <th style="width: 70px">선택</th>
+                            <th style="width: 70px">번호</th>
+                            <th style="width: 250px;">핫딜명</th>
+                            <th style="width: 200px">등록일</th>
+                            <th style="width: 200px">종료일</th>
+                            <th style="width: 120px;">핫딜<br>사용여부</th>
+                            <th style="width: 100px;">수정</th>
+                        </tr>
+                        <tr th:each="hotdeal : ${getHotdealList}">
+                            <td>
+                                <input type="checkbox" name="chk" th:id="'chk' + ${hotdeal.hotdealNo}" th:value="${hotdeal.hotdealNo}">
+                            </td>
+                            <td th:text="${hotdeal.hotdealNo}"></td>
+                            <td>
+                                <a th:text="${hotdeal.hotdealNm}"
+                                    th:href="@{/hotdeal/getHotdeal/{hotdealNo} (hotdealNo=${hotdeal.hotdealNo})}"></a>
+                            </td>
+                            <td th:text="${#strings.substring(hotdeal.hotdealRgstDate, 0, 10)}"></td>
+                            <td th:text="${hotdeal.hotdealEndDate}"></td>
+                            <td th:id = "'yntd' + ${hotdealStat.index}" th:text="${hotdeal.hotdealUseYn}"></td>
+                            <td> 
+                            <a th:href="@{/hotdeal/updateHotdeal/{hotdealNo} (hotdealNo=${hotdeal.hotdealNo})}">
+                            <button type="button" id="btnUpdate">수정</button>
+                            </a>
+                            </td>
+                        </tr>
+                    </table>
+                    <div id="hotdeal-page-wrapper">
+                        <ul class="pagination" th:if="${getHotdealList.totalElements > 0}" th:with="pageNumber = ${getHotdealList.pageable.pageNumber},
+	          						 		  pageSize = ${getHotdealList.pageable.pageSize},
+	          						 		  totalPages = ${getHotdealList.totalPages},
+	          						 		  startPage = ${T(java.lang.Math).floor(pageNumber / pageSize) * pageSize + 1},
+	          						 		  tempEndPage = ${startPage + pageSize - 1},
+	          						 		  endPage = ${tempEndPage > totalPages ? totalPages : tempEndPage}">
+
+                            <li class="page-item" th:if="${pageNumber > 0}">
+                                <a class="page-link" aria-label="Previous" th:href="@{/hotdeal/hotdealList(page=${pageNumber -1},
+	               				selectOption=${selectOption},
+	               				searchCondition=${searchCondition},
+	               				searchKeyword=${hotdealSearchKeyword})}">
+                                    <span aria-hidden="true">&lt;</span>
+                                </a>
+                            </li>
+
+                            <li class="page-item" th:each="page : ${#numbers.sequence(startPage, endPage)}">
+                                <a class="page-link" th:href="@{/hotdeal/hotdealList(page=${page - 1},
+                                selectOption=${selectOption},
+	            				searchCondition=${searchCondition},
+	            				searchKeyword=${hotdealSearchKeyword})}" th:text="${page}">
+                                </a>
+                            </li>
+
+                            <li class="page-item" th:if="${pageNumber < totalPages - 1}">
+                                <a class="page-link" aria-label="Next" th:href="@{/hotdeal/hotdealList(page=${pageNumber + 1},
+	              				selectOption=${selectOption},
+	              				searchCondition=${searchCondition},
+	              				searchKeyword=${hotdealSearchKeyword})}">
+                                    <span aria-hidden="true">&gt;</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

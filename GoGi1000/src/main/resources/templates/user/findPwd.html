@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http:///www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/layout-user}">
+      
+<!-- head 영역 시작 -->
+<!-- 개별적으로 사용할 css, js 링크 걸기 위해서 남겨둠 -->
+<head>
+	<th:block layout:fragment="css">
+		<link rel="stylesheet" th:href="@{/css/findPwd.css}"/>
+	</th:block>
+    <th:block layout:fragment="script">
+        
+        <script th:inline="javascript">
+		$(function() {
+			$('.modal').on('hidden.bs.modal', function (e) {
+		        console.log('modal close');
+		        $(this).find('form')[0].reset()
+		    });
+		
+		    $("#btnCert").click(function () {
+				if($("#userId").val() == '' || $("#userId").val() == null) {
+					alert("아이디를 입력하세요.");
+					return;
+				}
+				if($("#userMail").val() == '' || $("#userMail").val() == null) {
+					alert("이메일을 입력하세요.");
+					return;
+				}
+		        let userMail = $("#userMail").val();
+		        let userId = $("#userId").val();
+		
+		        $.ajax({
+		            type: "post",
+		            url: "/user/findPwd",
+		            data: {
+		                "userMail": userMail,
+		                "userId": userId
+		            },
+		            success: function (res) {
+						if(res.item.findPwdMsg == "wrongId") {
+							alert("존재하지 않는 아이디입니다.");
+						} else if(res.item.findPwdMsg == "wrongMail") {
+							alert("이메일이 일치하지 않습니다.");
+						} else {
+							alert("인증번호가 발송되었습니다. 메일을 확인해주세요.");
+							
+							//timer 구현
+						}
+		                /*if (res['check']) {
+		                    swal("발송 완료!", "입력하신 이메일로 임시비밀번호가 발송되었습니다.", "success").then((OK) =>  {
+		                        if(OK) {
+		                            $.ajax({
+		                                type: "POST",
+		                                url: "/user/findPwd/sendEmail",
+		                                data: {
+		                                    "userEmail": userEmail,
+		                                    "userId": userId
+		                                }
+		                            })
+		                            window.location = "/login";
+		                        }
+		
+		
+		                    }
+		                )
+		                    $('#checkMsg').html('<p style="color:darkblue"></p>');
+		                } else {
+		                    $('#checkMsg').html('<p style="color:red">일치하는 정보가 없습니다.</p>');
+		                }*/
+		            }
+		        })
+		    });
+		    
+		    $("#btnPwd").on("click", function() {
+				if($("#userId").val() == '' || $("#userId").val() == null) {
+					alert("아이디를 입력하세요.");
+					return;
+				}
+				if($("#userMail").val() == '' || $("#userMail").val() == null) {
+					alert("이메일을 입력하세요.");
+					return;
+				}
+				if($("#verifiCode").val() == '' || $("#verifiCode").val() == null) {
+					alert("인증번호를 입력하세요.");
+					return;
+				}
+				
+				let userMail = $("#userMail").val();
+		        let userId = $("#userId").val();
+		        let verifiCode = $("#verifiCode").val();
+		
+		        $.ajax({
+		            type: "post",
+		            url: "/user/pwCheck",
+		            data: {
+		                "userMail": userMail,
+		                "userId": userId,
+		                userPw : verifiCode
+		            },
+		            success: function (res) {
+						console.log(res);
+						if(res.item.msg == "pwOK"){
+							alert("인증번호가 확인되었습니다.");
+							location.href="/user/newPwd?userId=" + userId;
+						}else {
+							alert("잘못된 인증번호 입니다.");
+						}
+					},
+					error: function(e) {
+						console.log(e);
+					}
+				});
+			});
+	    });
+        </script>
+    </th:block>
+</head>
+<!-- head 영역 끝 -->
+
+<body>
+	<div layout:fragment="content">
+	  	 <div class="form-wrapper">
+
+            <!-- ========== 최상단 영역 ========== -->
+            <div class="main-wrap">
+                <div class="main-image">
+                    <img src="/images/navstyle.png" alt="" />
+                </div>
+                <div>
+                    <p id="main-logo" href="javascript:history.back();" ><a th:href="@{/user/login}" style="color: white; text-decoration-line:none">←</a></p>
+                </div>
+                <div class="main-logo2" style="position: relative;">
+	               <a th:href="@{/home/main}"><img style="margin-top: -60px;" src="/images/logo.png" alt=""></a>
+	                <div
+	                    style="background-color: white; width: 150px; height: 70px; margin-top: -100px; margin-left: 50px;">
+	                </div>
+            	</div>
+            </div>
+    </div>
+
+    <!-- 비밀번호 찾기 타이틀 -->
+    <div id="container-main-text" style="margin-top: 130px;">
+        <div id="main-text" >
+            &ensp;<hr>
+        </div>
+        <div id="main-line">
+            <h1><u>비밀번호 찾기</u></h1>
+        </div>
+    </div>
+            
+    <div id="container-sub-text">   
+        <div id="sub-text" style="text-align: left;">
+            <p>본인확인 이메일로 인증</p>
+        </div>
+    </div>
+   
+    <!-- 비밀번호 찾기 영역 -->
+
+    <div id="container-info">
+
+         <!-- 이름 -->
+        <div class="input  label_wrapper2" style="font-size: 1em; ">아이디&ensp;&ensp;&ensp;&ensp;
+            <div class="input_wrapper">
+                <input type="text" name="userId" id="userId" required placeholder="아이디를 입력하세요.">
+                <div class="input_border" ></div>
+           </div>
+           <span class="square"></span>
+        </div>
+
+        <!-- 이메일 -->
+        <div class="input  label_wrapper2" style="font-size: 1em;">이메일 주소
+            <div class="input_wrapper">
+                <input type="text" name="userMail" id="userMail" required placeholder="이메일을 입력하세요.">
+                <span class="input_border" ></span>
+           </div>
+           <button type="button" class="btn1" id="btnCert">
+            <span class="btn_inner">인증번호 받기</span>
+            </button>
+        </div>
+    </div>
+
+	
+    <div class="container2">
+        <!-- 인증번호 받기 -->
+         <form id="newPwdForm" action="/user/newPwd" method="post">
+        <div class="input  label_wrapper3">
+            <div class="input_wrapper4">
+                <input type="text" name="verifiCode" id="verifiCode" required placeholder="인증번호를 입력하세요.">
+                <span class="input_border2" ></span>
+           </div>
+        </div>
+
+        <!-- 비밀번호 찾기 btn -->
+        
+      <div  style="display: flex; justify-content: center; margin-bottom: 5em;">
+        <button type="button" class="btn2" id="btnPwd" >
+        <span class="btn_inner">다음</span>
+        </button>
+    </div> 
+    </form>
+	</div>
+</body>
+</html>

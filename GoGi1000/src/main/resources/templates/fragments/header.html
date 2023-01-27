@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http:///www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+      <!-- 스프핑 시큐리티 사용을 위한 -->
+	  <!-- xmlns:sec="http://www.thymeleaf.org/extras/spring-security"> -->
+      
+	 <head>
+	  	<th:block layout:fragment="script">
+	      	<script th:inline="javascript">
+	      		$(function() {
+					  /* 
+					  	지금 현재 페이지가 header.html 페이지가 아니기 떄문에
+					  	header에 있는 script가 동작하지 않는다.
+					  	header에서 동작해야 되는 script는, 
+					  	공통 header.js로 빼서, 모든 페이지도 동작하게 만든다.
+					  	header.js 만들면, config.html에 추가해야된다.
+					  	( config.html에 js파일 추가!!!! )
+					  	
+					  	Form 태그안에 input박스 하나라도 있으면, 
+					  	자동으로 submit이 되기 때문에, 따로 엔터조회, a조회 할 필요가 없다.
+					  	
+					  	a태그 사용하여 form submit시 무조건 e.preventDefault()하기._인겸
+					  */		
+					  
+				 })
+	      	</script>
+	     </th:block>
+	 </head>
+    
+	<body>
+		<header th:fragment="header">
+			<div id="container">
+				<!-- header -->
+				<div id="header">
+					<div id="header-top">
+						<div id="header-logo">
+							<a th:href="@{/home/main}" class="header-logo-link">
+								<img id="header-logo-img" th:src="@{/images/headerLogo.png}" alt="">
+							</a>
+						</div>
+						<div id="header-search-wrapper">
+							<form action="/main/getSearchMapDatecourseList" method="get" id="header-searchForm" name="header-searchForm">
+								<div id="header-search">
+									<a id="searchA" th:href="@{/main/getSearchDatecourseList}"><img id="header-search-img" th:src="@{/images/search.png}"></a>
+									<!-- value는 입력하면 알아서 들어감. 지워도 상관없음--> 
+									<input type="text" name="searchKeyword" th:value="${searchKeyword}" id="header-search-input" placeholder="지역, 코스명, 음식점 또는 카페"
+										   onfocus="this.placeholder=''" onblur="placeholder='지역, 코스명, 음식점 또는 카페'">
+								</div>
+							</form>
+						</div>
+						<!-- th:remove 이 조건이 맞지 않으면 해당 div를 삭제해라 -->
+						<!-- 인증된 사용자가 있는지, 없으면  -->
+						<div class="header-login" sec:authorize="!isAuthenticated()" th:remove="tag">
+							<ul class="header-login-ul">
+								<li>
+									<a th:href="@{/user/login}" class="header-logo-link">
+										<img id="header-login-ul-image" th:src="@{/images/user.png}">
+										로그인 또는 회원가입</a>
+								</li>
+							</ul>
+						</div>
+						<div class="header-login" sec:authorize="isAuthenticated()" th:remove="tag">
+							<ul class="header-login-ul" sec:authorize="hasRole('ROLE_USER')">
+								<li>
+									<a th:href="@{/datecourse/getMyDatecourseList}"><span sec:authentication="principal.username"></span><span> 님 환영합니다.</span></a>
+								</li>
+							</ul>
+							<ul class="header-login-ul" sec:authorize="hasRole('ROLE_ADMIN')">
+								<li>
+									<a th:href="@{/datecourse/getDatecourseList}"><span  sec:authentication="principal.username"></span><span> 님 환영합니다.</span></a>
+								</li>
+							</ul>
+							<ul class="header-login-ul">
+								<li>
+									 <a th:href="@{/user/logout}">로그아웃</a>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div id="header-bottom">
+						<div id="nav">
+							<img id="nav-image" th:src="@{/images/navstyle.png}">
+							<div id="nav-ul">	
+								<div id="nav-ul-li">
+									<li><a href="/home/main/#header-bottom" class="nav-list-link">지역</a></li>
+									<li><a href="/home/main/#ranking-h2" class="nav-list-link">인기 랭킹</a></li>
+									<li><a href="/home/main/#hotdeal-h2" class="nav-list-link">핫딜</a></li>
+								</div>
+								<!-- sec:authorize="isAuthenticated()" th:remove="tag"  sec:authorize="hasRole('ROLE_ADMIN')-->
+								<div id="nav-div-li">
+									<li sec:authorize="hasRole('ROLE_USER')"><a th:href="@{/datecourse/getMyDatecourseList}" class="nav-list-link">마이페이지</a></li>
+									<li sec:authorize="hasRole('ROLE_ADMIN')"><a th:href="@{/datecourse/getDatecourseList}" class="nav-list-link">관리자페이지</a></li>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</header>
+	</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http:///www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/layout-admin}">
+<head>
+	<th:block layout:fragment="css">
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" 
+			  rel="stylesheet" integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" 
+			  crossorigin="anonymous">
+		<link rel="stylesheet" th:href="@{/css/mypageLikeList.css}"/>	
+	</th:block>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>마이페이지-좋아요리스트</title>
+  <th:block layout:fragment="script">
+     <script th:inline="javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+     <script th:inline="javascript" src="https://cdn.jsdelivr.net/bxslider/4.2.12/jquery.bxslider.min.js"></script>
+     <script src="https://code.jquery.com/jquery-3.6.2.js"
+  					integrity="sha256-pkn2CUZmheSeyssYw3vMp1+xyub4m+e+QK4sQskvuo4="
+  					crossorigin="anonymous"></script>  
+    <script th:inline="javascript">
+    	 $(function() { 
+			 // 사이드 바 선택 시, 해당 리스트 항목 선택_인겸
+			$("#side").children().children().eq(1).attr('class','isSelect');
+		    $("#side").children().children().eq(1).css("background-color", "white");
+		    $("#side").children().children().eq(1).css("color", "#ee2d7a");
+		    $("#side").children().children().eq(1).css("border-top-left-radius", "40%")
+		    $("#side").children().children().eq(1).css("border-bottom-left-radius", "40%");
+
+			// '좋아요' 상태에서 클릭 시 좋아요 취소_장찬영
+	     	$(".btnLike").each(function() {
+	        	$(this).on('click', function() {
+	          		if($(this).children('img').attr('src') === "/images/yellowStar.png") {
+	            		$(this).find("img").attr("src", "/images/emptystar.png");  
+	            		
+	            		$.ajax({
+							url: '/like/deleteLike',
+							type: 'delete',
+							data: {datecourseNo : $(this).attr('datecourse-no')},
+							success: function(obj) {
+								alert("'좋아요' 취소하였습니다.");
+							},
+							error: function(e) {
+								console.log(e);
+							}
+						});    
+	          		}
+	          		// '좋아요'가 아닌 상태에서 클릭 시 좋아요 등록_장찬영
+		          	else {
+		            	$(this).find("img").attr("src", "/images/yellowStar.png");
+		            			            	
+					  	
+					  	$.ajax({
+							url: '/like/InsertLike',
+							type: 'post',
+							data: {datecourseNo : $(this).attr('datecourse-no')},
+							success: function(obj) {
+								alert("'좋아요' 하였습니다.");
+							},
+							error: function(e) {
+								console.log(e);
+							}
+						});
+		          	}
+	        	});
+	      	});
+			
+	    });
+  	</script>
+  </th:block>
+</head>
+<body>
+	
+    	<div layout:fragment="content">
+    	<div id="likelist-container">
+			<!-- 메인 화면 -->
+        <div id="div-wrapper-main">
+          <!-- 메인 제목 -->
+          <div id="main-title">
+            <h1 style="margin: 0; float: left;">좋아요 리스트</h1>
+          </div>
+          <hr style="width: 100%;">
+          <!-- 메인 내용 -->
+            <!-- 좋아요 리스트 출력 --> 
+            <div style="text-align: center; min-height: 480px;">
+              <table style="min-height: 150px;">
+                <tr th:each="like : ${likeList}" th:if="${likeList.getTotalElements != 0}">
+                  <!-- 해당 게시글 이미지 출력 -->
+                  <td style="width:15%;"><img th:src="@{'/upload/' + ${like.imageNm}}" alt="" class="mainImg"></td>
+                  <td style="width:65%;">
+                    <!-- 제목으로 해당 게시글 링크 -->
+                    <div class="row">
+        				<div class="col-sm-5">
+          					<div class="row row-cols-auto">
+            					<div class="col">
+              						<a th:href="@{/main/getCateDatecourse/{datecourseNo} (datecourseNo = ${like.datecourseNo})}" class="linkMain" th:text="${like.datecourseNm}" style="font-size: 1.3rem;"></a>
+            					</div>
+          					</div>
+          					<br />
+          					<div class="row row-cols-auto">
+            					<div class="col" th:text="|조회 수 : ${like.datecourseCnt}|" style="font-size: 0.8rem;"></div>
+            					<div class="col" th:text="|좋아요 : ${like.likeCnt}|" style="font-size: 0.8rem;"></div>
+          					</div>
+        				</div>
+        				<div class="col-sm-7" style="display: flex;">
+          					<div class="row" style="align-items: center;">
+            					<div class="col">
+              						<span id="like-desc" style="float: left" th:text="${like.datecourseDesc}"></span>
+            					</div>
+          					</div>
+        				</div>
+      				</div>
+                    
+                  </td>                  
+                  <!-- 버튼으로 취소/추가 구현 -->
+                  <td style="width:10%;">
+                    <button type="button" class="btnLike" th:datecourse-no="${like.datecourseNo}">
+                      <img th:src="${like.likeYn} eq 'Y' ? @{/images/yellowStar.png} : @{/images/emptystar.png}" alt="" class="likeImg">
+                    </button>
+                  </td>                
+                </tr>
+                <div id="none-like-list" th:if="${likeList.getTotalElements == 0}">
+                	<p>등록된 '좋아요'가 없습니다.</p>
+                	<div><a id="none-like-a" th:href="@{/home/main}">홈으로</a></div>
+                </div>         
+              </table>
+              <!-- 갯수 출력 -->
+              <div style="width: 100%;">
+            	<span style="font-size: small; float: right; margin-top: 10px">전체 갯수 : 
+            		<span style="font-weight: bold; color: #ee2d7a;" th:text="${likeList.getTotalElements}"></span>개
+            	</span>
+          	  </div> 
+            </div>
+          
+
+          <br>
+          <!-- 페이징 -->
+          <nav aria-label="Page navigation example" style="margin: auto; width: 80%;" >
+            <ul class="pagination justify-content-center" 
+            	th:if="${likeList.totalElements > 0}"
+				th:with="pageNumber = ${likeList.pageable.pageNumber},
+						 pageSize = ${likeList.pageable.pageSize},
+						 totalPages = ${likeList.totalPages},
+						 startPage = ${T(java.lang.Math).floor(pageNumber / pageSize) * pageSize + 1},
+						 tempEndPage = ${startPage + pageSize - 1},
+						 endPage = ${tempEndPage > totalPages ? totalPages : tempEndPage}">
+              <li class="page-item" th:if="${pageNumber > 0}">
+                <a class="page-link" th:href="@{/like/mypageLikeList(
+											page=${pageNumber - 1})}" 
+									 aria-label="Previous">
+                  <span aria-hidden="true">&lt;</span>
+                </a>
+              </li>
+              <li class="page-item" th:each="page : ${#numbers.sequence(startPage, endPage)}">
+              	<a class="page-link" th:href="@{/like/mypageLikeList(
+											page=${page - 1})}" 
+									 th:text="${page}"></a>
+              </li>
+              <li class="page-item" th:if="${pageNumber < totalPages - 1}">
+                <a class="page-link" th:href="@{/like/mypageLikeList(
+											page=${pageNumber + 1})}"
+									 aria-label="Next">
+                  <span aria-hidden="true">&gt;</span>
+                </a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+          
+        </div>
+		</div>
+
+    
+
+        
+   
+</div>
+</body>
